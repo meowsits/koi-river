@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zen River Koi</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app-container">
+    
+    <div id="canvas-container">
+		<div id="score-board">
+        <h1>Flowers Eaten (by Koi): <span id="score-npc">0</span></h1>
+        <h2>Koi Eaten (by Dragons): <span id="score-dragon">0</span></h2>
+        <p>Hover mouse to create water ripples</p>
+		</div>
+      <canvas id="simulationCanvas"></canvas>
+    </div>
+
+    <div id="control-panel">
+      <div class="panel-header">
+        <h2>River Flow Settings</h2>
+        <button id="resetBtn" title="Reset Simulation">Reset</button>
+      </div>
+      
+      <div class="controls-list" id="controls">
+        </div>
+    </div>
+
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
