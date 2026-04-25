@@ -13,7 +13,7 @@ class Vector {
   distSq(v) { let dx = this.x - v.x; let dy = this.y - v.y; return dx * dx + dy * dy; }
 }
 
-// --- Flower Class ---
+// --- Flower Class (Producers) ---
 class Boid {
   constructor(x, y) {
     this.pos = new Vector(x, y);
@@ -76,7 +76,7 @@ class Boid {
 
   update(config) {
     if (config.flowEnabled) {
-      this.acc.x += config.flowStrength * 0.05; // Apply scaled global current
+      this.acc.x += config.flowStrength * 0.05; 
     }
     this.vel.add(this.acc);
     this.vel.limit(config.maxSpeed);
@@ -101,7 +101,7 @@ class Boid {
   }
 }
 
-// --- NPC Koi Class ---
+// --- NPC Koi Class (Primary Consumers) ---
 class NPCKoi {
   constructor(x, y, id = 0) {
     this.pos = new Vector(x, y);
@@ -110,7 +110,6 @@ class NPCKoi {
     this.maxSpeed = 3.2; 
     this.maxForce = 0.08; 
     this.eatRadiusSq = 30 * 30;
-    this.lastMeal = Date.now(); 
     
     const palettes = [
       { body: '#f8fafc', spots: '#ef4444' }, 
@@ -136,20 +135,23 @@ class NPCKoi {
     return steer;
   }
 
-  flee(dragons) {
+  flee(dragonGroups) {
     let steer = new Vector(0, 0);
     let count = 0;
     const fleeRadiusSq = 120 * 120; 
     
-    for (let d of dragons) {
-      let dSq = this.pos.distSq(d.pos);
-      if (dSq < fleeRadiusSq) {
-        let diff = this.pos.copy();
-        diff.sub(d.pos);
-        diff.normalize();
-        diff.div(Math.sqrt(dSq)); 
-        steer.add(diff);
-        count++;
+    // Check all types of dragons and run from all of them
+    for (let type in dragonGroups) {
+      for (let d of dragonGroups[type]) {
+        let dSq = this.pos.distSq(d.pos);
+        if (dSq < fleeRadiusSq) {
+          let diff = this.pos.copy();
+          diff.sub(d.pos);
+          diff.normalize();
+          diff.div(Math.sqrt(dSq)); 
+          steer.add(diff);
+          count++;
+        }
       }
     }
     
@@ -164,25 +166,25 @@ class NPCKoi {
   }
 
   hunt(boids) {
-    let eaten = 0; let closestDist = Infinity; let closestBoid = null;
+    let closestDist = Infinity; let closestBoid = null;
     for (let i = boids.length - 1; i >= 0; i--) {
       let boid = boids[i];
       let dSq = this.pos.distSq(boid.pos);
-      if (dSq < this.eatRadiusSq) { boids.splice(i, 1); eaten++; } 
-      else if (dSq < closestDist) { closestDist = dSq; closestBoid = boid; }
+      if (dSq < this.eatRadiusSq) { 
+        boids.splice(i, 1); 
+      } else if (dSq < closestDist) { 
+        closestDist = dSq; closestBoid = boid; 
+      }
     }
-    
-    if (eaten > 0) this.lastMeal = Date.now(); 
 
     if (closestBoid && this.acc.magSq() === 0) { 
       this.acc.add(this.seek(closestBoid.pos)); 
     }
-    return eaten;
   }
 
   update(config) {
     if (config.flowEnabled) {
-      this.acc.x += config.flowStrength * 0.05; // Apply scaled global current
+      this.acc.x += config.flowStrength * 0.05; 
     }
     this.vel.add(this.acc); this.vel.limit(this.maxSpeed);
     this.pos.add(this.vel); this.acc.mult(0);
@@ -211,9 +213,9 @@ class NPCKoi {
   }
 }
 
-// --- Dragon Apex Predator Class ---
+// --- RPS Dragon Class (Apex Predators) ---
 class Dragon {
-  constructor(x, y) {
+  constructor(x, y, type) {
     this.pos = new Vector(x, y);
     this.vel = new Vector((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4);
     this.acc = new Vector(0, 0);
@@ -221,7 +223,25 @@ class Dragon {
     this.maxForce = 0.06; 
     this.eatRadiusSq = 40 * 40; 
     this.history = []; 
-    this.lastMeal = Date.now(); 
+    this.type = type;
+
+    // Rock-Paper-Scissors Rules
+    const rpsRules = {
+      rock: { eats: 'scissors', flees: 'paper' },
+      paper: { eats: 'rock', flees: 'scissors' },
+      scissors: { eats: 'paper', flees: 'rock' }
+    };
+    this.preyType = rpsRules[type].eats;
+    this.predatorType = rpsRules[type].flees;
+
+    // Assign specific elemental colors
+    if (type === 'rock') {
+      this.cBody = '#52525b'; this.cStroke = '#27272a'; this.cHead = '#3f3f46'; this.cAccent = '#a1a1aa';
+    } else if (type === 'paper') {
+      this.cBody = '#e2e8f0'; this.cStroke = '#94a3b8'; this.cHead = '#cbd5e1'; this.cAccent = '#ffffff';
+    } else if (type === 'scissors') {
+      this.cBody = '#dc2626'; this.cStroke = '#7f1d1d'; this.cHead = '#b91c1c'; this.cAccent = '#fca5a5';
+    }
   }
 
   edges(width, height) {
@@ -237,24 +257,75 @@ class Dragon {
     return steer;
   }
 
-  hunt(kois) {
-    let eaten = 0; let closestDist = Infinity; let closestKoi = null;
+  flee(dragonGroups) {
+    let steer = new Vector(0, 0);
+    let count = 0;
+    const fleeRadiusSq = 120 * 120; 
+    let predators = dragonGroups[this.predatorType];
+
+    // Only run from the specific RPS predator type
+    for (let p of predators) {
+      let dSq = this.pos.distSq(p.pos);
+      if (dSq < fleeRadiusSq) {
+        let diff = this.pos.copy();
+        diff.sub(p.pos);
+        diff.normalize();
+        diff.div(Math.sqrt(dSq)); 
+        steer.add(diff);
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      steer.div(count);
+      steer.normalize();
+      steer.mult(this.maxSpeed);
+      steer.sub(this.vel);
+      steer.limit(this.maxForce * 2); // Panic surge
+      this.acc.add(steer);
+    }
+  }
+
+  hunt(kois, dragonGroups, deadNPCs, deadDragons, now) {
+    let closestDist = Infinity; 
+    let closestTarget = null;
+
+    // 1. Hunt Kois
     for (let i = kois.length - 1; i >= 0; i--) {
       let koi = kois[i];
       let dSq = this.pos.distSq(koi.pos);
-      if (dSq < this.eatRadiusSq) { kois.splice(i, 1); eaten++; } 
-      else if (dSq < closestDist) { closestDist = dSq; closestKoi = koi; }
+      if (dSq < this.eatRadiusSq) { 
+        kois.splice(i, 1); 
+        deadNPCs.push(now); 
+      } else if (dSq < closestDist) { 
+        closestDist = dSq; 
+        closestTarget = koi.pos; 
+      }
     }
-    
-    if (eaten > 0) this.lastMeal = Date.now(); 
 
-    if (closestKoi) { this.acc.add(this.seek(closestKoi.pos)); }
-    return eaten;
+    // 2. Hunt Specific RPS Rival
+    let preyArray = dragonGroups[this.preyType];
+    for (let i = preyArray.length - 1; i >= 0; i--) {
+      let enemy = preyArray[i];
+      let dSq = this.pos.distSq(enemy.pos);
+      if (dSq < this.eatRadiusSq) {
+        preyArray.splice(i, 1);
+        deadDragons[this.preyType].push(now); 
+      } else if (dSq < closestDist) {
+        closestDist = dSq;
+        closestTarget = enemy.pos;
+      }
+    }
+
+    // Only seek prey if not currently fleeing from a predator
+    if (closestTarget && this.acc.magSq() === 0) { 
+      this.acc.add(this.seek(closestTarget)); 
+    }
   }
 
   update(config) {
     if (config.flowEnabled) {
-      this.acc.x += config.flowStrength * 0.05; // Apply scaled global current
+      this.acc.x += config.flowStrength * 0.05; 
     }
     this.vel.add(this.acc); this.vel.limit(this.maxSpeed);
     this.pos.add(this.vel); this.acc.mult(0);
@@ -268,8 +339,8 @@ class Dragon {
   draw(ctx) {
     let angle = this.vel.magSq() > 0 ? Math.atan2(this.vel.y, this.vel.x) : 0;
     
-    ctx.fillStyle = '#0f766e'; 
-    ctx.strokeStyle = '#042f2e';
+    ctx.fillStyle = this.cBody; 
+    ctx.strokeStyle = this.cStroke;
     for (let i = 0; i < this.history.length; i += 2) {
       let pt = this.history[i];
       let radius = Math.max(2, 15 - (i / 1.5)); 
@@ -281,10 +352,10 @@ class Dragon {
 
     ctx.save(); ctx.translate(this.pos.x, this.pos.y); ctx.rotate(angle);
     
-    ctx.fillStyle = '#115e59'; 
+    ctx.fillStyle = this.cHead; 
     ctx.beginPath(); ctx.ellipse(0, 0, 20, 15, 0, 0, Math.PI * 2); ctx.fill();
     
-    ctx.strokeStyle = '#ccfbf1';
+    ctx.strokeStyle = this.cAccent;
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(10, 10); ctx.quadraticCurveTo(5, 25, -15, 30); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(10, -10); ctx.quadraticCurveTo(5, -25, -15, -30); ctx.stroke();
@@ -300,27 +371,30 @@ class Dragon {
 // --- Application State & Logic ---
 const canvas = document.getElementById('simulationCanvas');
 const ctx = canvas.getContext('2d');
-const scoreNpcEl = document.getElementById('score-npc');
-const scoreDragonEl = document.getElementById('score-dragon');
 
 let width, height;
 let boids = [];
 let npcs = [];
-let dragons = [];
+
+// RPS Dragons mapped by type
+let dragons = { rock: [], paper: [], scissors: [] };
+
+// Track death timestamps for UI skulls and respawn cooldowns
 let deadNPCs = []; 
-let deadDragons = []; 
-let scores = { npc: 0, dragon: 0 };
+let deadDragons = { rock: [], paper: [], scissors: [] };
 
 let config = {
   flowEnabled: true, flowStrength: 1.0,
-  numBoids: 150, numNPCs: 4, numDragons: 1, perceptionRadius: 60, maxSpeed: 2.5,
+  numBoids: 150, numNPCs: 8, perceptionRadius: 60, maxSpeed: 2.5,
+  numRock: 1, numPaper: 1, numScissors: 1,
   maxForce: 0.05, alignWeight: 1.0, cohesionWeight: 1.2, separationWeight: 1.5
 };
 
-// UI Generation
+// --- UI Generation ---
 const controlsContainer = document.getElementById('controls');
+controlsContainer.innerHTML = ''; // Clear previous controls
 
-// 1. Create Dedicated River Flow Box
+// Generate River Flow UI Box
 const flowBox = document.createElement('div');
 flowBox.style.backgroundColor = 'rgba(12, 74, 110, 0.5)'; 
 flowBox.style.border = '1px solid #0284c7'; 
@@ -334,7 +408,6 @@ flowBox.innerHTML = `
     </label>
     <input type="checkbox" id="flowEnabled" ${config.flowEnabled ? 'checked' : ''} title="Toggle River Current" style="cursor: pointer; width: 16px; height: 16px; accent-color: #f472b6;">
   </div>
-  
   <div class="slider-container" style="margin-bottom: 12px;">
     <div class="slider-header">
       <label>Flow Strength</label>
@@ -342,7 +415,6 @@ flowBox.innerHTML = `
     </div>
     <input type="range" id="flowStrength" min="-5" max="5" step="0.1" value="${config.flowStrength}">
   </div>
-
   <div class="slider-container">
     <div class="slider-header">
       <label>Max Drift Speed</label>
@@ -353,26 +425,23 @@ flowBox.innerHTML = `
 `;
 controlsContainer.appendChild(flowBox);
 
-// Event Listeners for the Flow Box
-document.getElementById('flowEnabled').addEventListener('change', (e) => {
-  config.flowEnabled = e.target.checked;
-});
+document.getElementById('flowEnabled').addEventListener('change', (e) => config.flowEnabled = e.target.checked);
 document.getElementById('flowStrength').addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  config.flowStrength = val;
-  document.getElementById('val-flowStrength').innerText = val;
+  config.flowStrength = parseFloat(e.target.value);
+  document.getElementById('val-flowStrength').innerText = config.flowStrength;
 });
 document.getElementById('maxSpeed').addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  config.maxSpeed = val;
-  document.getElementById('val-maxSpeed').innerText = val;
+  config.maxSpeed = parseFloat(e.target.value);
+  document.getElementById('val-maxSpeed').innerText = config.maxSpeed;
 });
 
-// 2. Generate Remaining Sliders
+// Generate Ecosystem Sliders
 const sliders = [
-  { id: 'numBoids', label: 'Number of Flowers', min: 10, max: 500, step: 10 },
-  { id: 'numNPCs', label: 'Number of Koi', min: 0, max: 16, step: 1 },
-  { id: 'numDragons', label: 'Number of Dragons', min: 0, max: 5, step: 1 },
+  { id: 'numBoids', label: '🌸 Flowers', min: 10, max: 500, step: 10 },
+  { id: 'numNPCs', label: '🐟 Koi', min: 0, max: 16, step: 1 },
+  { id: 'numRock', label: '🪨 Rock Dragons', min: 0, max: 4, step: 1 },
+  { id: 'numPaper', label: '📄 Paper Dragons', min: 0, max: 4, step: 1 },
+  { id: 'numScissors', label: '✂️ Scissors Dragons', min: 0, max: 4, step: 1 },
   { id: 'perceptionRadius', label: 'Eddy Radius', min: 10, max: 200, step: 5 }
 ];
 
@@ -390,11 +459,11 @@ sliders.forEach(s => {
   controlsContainer.appendChild(div);
   
   document.getElementById(s.id).addEventListener('input', (e) => {
-    const val = parseFloat(e.target.value);
-    config[s.id] = val;
-    document.getElementById(`val-${s.id}`).innerText = val;
+    config[s.id] = parseFloat(e.target.value);
+    document.getElementById(`val-${s.id}`).innerText = config[s.id];
   });
 });
+
 // Setup & Resize
 function resize() {
   width = canvas.parentElement.clientWidth;
@@ -405,17 +474,25 @@ window.addEventListener('resize', resize);
 resize();
 
 function reset() {
-  boids = []; npcs = []; dragons = [];
-  deadNPCs = []; deadDragons = [];
+  boids = []; npcs = []; 
+  dragons = { rock: [], paper: [], scissors: [] };
+  deadNPCs = []; 
+  deadDragons = { rock: [], paper: [], scissors: [] };
+  
   for (let i = 0; i < config.numBoids; i++) boids.push(new Boid(Math.random() * width, Math.random() * height));
   for (let i = 0; i < config.numNPCs; i++) npcs.push(new NPCKoi(Math.random() * width, Math.random() * height, i));
-  for (let i = 0; i < config.numDragons; i++) dragons.push(new Dragon(width / 2, height / 2));
-  scores.npc = 0; scores.dragon = 0;
-  scoreNpcEl.innerText = 0; scoreDragonEl.innerText = 0;
+  
+  const types = ['rock', 'paper', 'scissors'];
+  for (let t of types) {
+    let confName = `num${t.charAt(0).toUpperCase() + t.slice(1)}`;
+    for (let i = 0; i < config[confName]; i++) {
+      dragons[t].push(new Dragon(width / 2, height / 2, t));
+    }
+  }
 }
 document.getElementById('resetBtn').addEventListener('click', reset);
 
-// Game Loop
+// --- Primary Game Loop ---
 reset();
 function loop() {
   let now = Date.now();
@@ -428,31 +505,37 @@ function loop() {
     for (let i = boids.length; i < config.numBoids; i++) boids.push(new Boid(Math.random() * width, Math.random() * height));
   } else if (boids.length > config.numBoids) boids.splice(config.numBoids);
 
-  // --- Respawn & Cooldown Logic ---
+  // Maintain Koi Respawns & UI
   deadNPCs = deadNPCs.filter(t => now - t < 10000); 
-  deadDragons = deadDragons.filter(t => now - t < 20000);
-
   let allowedNPCs = Math.max(0, config.numNPCs - deadNPCs.length);
-  let allowedDragons = Math.max(0, config.numDragons - deadDragons.length);
-
-  // Update Skulls in UI
   document.getElementById('dead-numNPCs').innerText = '💀'.repeat(deadNPCs.length);
-  document.getElementById('dead-numDragons').innerText = '💀'.repeat(deadDragons.length);
 
-  // Sync Arrays with Allowed Capacities
   if (npcs.length < allowedNPCs) {
     for (let i = npcs.length; i < allowedNPCs; i++) npcs.push(new NPCKoi(Math.random() * width, Math.random() * height, npcs.length));
   } else if (npcs.length > allowedNPCs) {
     npcs.splice(allowedNPCs);
   }
 
-  if (dragons.length < allowedDragons) {
-    for (let i = dragons.length; i < allowedDragons; i++) dragons.push(new Dragon(Math.random() * width, Math.random() * height));
-  } else if (dragons.length > allowedDragons) {
-    dragons.splice(allowedDragons);
+  // Maintain Dragon Respawns & UI
+  const types = ['rock', 'paper', 'scissors'];
+  for (let t of types) {
+    // 20 second cooldown for dragons
+    deadDragons[t] = deadDragons[t].filter(time => now - time < 20000);
+    
+    let confName = `num${t.charAt(0).toUpperCase() + t.slice(1)}`; 
+    let allowed = Math.max(0, config[confName] - deadDragons[t].length);
+    
+    let uiElement = document.getElementById(`dead-${confName}`);
+    if (uiElement) uiElement.innerText = '💀'.repeat(deadDragons[t].length);
+
+    if (dragons[t].length < allowed) {
+      for (let i = dragons[t].length; i < allowed; i++) dragons[t].push(new Dragon(Math.random() * width, Math.random() * height, t));
+    } else if (dragons[t].length > allowed) {
+      dragons[t].splice(allowed);
+    }
   }
 
-  // Update Flowers (Boids)
+  // Update Flowers
   for (let boid of boids) {
     boid.flock(boids, config); 
     boid.update(config); 
@@ -461,53 +544,25 @@ function loop() {
   }
 
   // Update Koi
-  let npcEatenThisFrame = 0;
   for (let i = npcs.length - 1; i >= 0; i--) {
     let npc = npcs[i];
-    
-    // Starvation Check (3 seconds)
-    if (now - npc.lastMeal > 3000) {
-      npcs.splice(i, 1);
-      deadNPCs.push(now); 
-      continue;
-    }
-    
     npc.flee(dragons); 
-    npcEatenThisFrame += npc.hunt(boids); 
+    npc.hunt(boids); 
     npc.update(config); 
     npc.edges(width, height); 
     npc.draw(ctx);
   }
-  if (npcEatenThisFrame > 0) { 
-    scores.npc += npcEatenThisFrame; 
-    scoreNpcEl.innerText = scores.npc; 
-  }
 
   // Update Dragons
-  let dragonEatenThisFrame = 0;
-  for (let i = dragons.length - 1; i >= 0; i--) {
-    let dragon = dragons[i];
-    
-    // Dragon Starvation Check (10 seconds)
-    if (now - dragon.lastMeal > 10000) {
-      dragons.splice(i, 1);
-      deadDragons.push(now);
-      continue;
+  for (let t of types) {
+    for (let i = dragons[t].length - 1; i >= 0; i--) {
+      let dragon = dragons[t][i];
+      dragon.flee(dragons); 
+      dragon.hunt(npcs, dragons, deadNPCs, deadDragons, now); 
+      dragon.update(config);
+      dragon.edges(width, height);
+      dragon.draw(ctx);
     }
-    
-    dragonEatenThisFrame += dragon.hunt(npcs);
-    
-    for(let j=0; j < dragonEatenThisFrame; j++) {
-       deadNPCs.push(now);
-    }
-
-    dragon.update(config);
-    dragon.edges(width, height);
-    dragon.draw(ctx);
-  }
-  if (dragonEatenThisFrame > 0) {
-    scores.dragon += dragonEatenThisFrame;
-    scoreDragonEl.innerText = scores.dragon;
   }
 
   requestAnimationFrame(loop);
