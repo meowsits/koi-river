@@ -13,7 +13,7 @@ class Vector {
   distSq(v) { let dx = this.x - v.x; let dy = this.y - v.y; return dx * dx + dy * dy; }
 }
 
-// --- Flower Class (Producers) ---
+// --- Flower Class ---
 class Boid {
   constructor(x, y) {
     this.pos = new Vector(x, y);
@@ -101,7 +101,7 @@ class Boid {
   }
 }
 
-// --- NPC Koi Class (Primary Consumers) ---
+// --- NPC Koi Class ---
 class NPCKoi {
   constructor(x, y, id = 0) {
     this.pos = new Vector(x, y);
@@ -140,7 +140,7 @@ class NPCKoi {
     let count = 0;
     const fleeRadiusSq = 120 * 120; 
     
-    // Check all types of dragons and run from all of them
+    // Check all types of dragons
     for (let type in dragonGroups) {
       for (let d of dragonGroups[type]) {
         let dSq = this.pos.distSq(d.pos);
@@ -213,7 +213,7 @@ class NPCKoi {
   }
 }
 
-// --- RPS Dragon Class (Apex Predators) ---
+// --- RPS Dragon Class ---
 class Dragon {
   constructor(x, y, type) {
     this.pos = new Vector(x, y);
@@ -263,7 +263,6 @@ class Dragon {
     const fleeRadiusSq = 120 * 120; 
     let predators = dragonGroups[this.predatorType];
 
-    // Only run from the specific RPS predator type
     for (let p of predators) {
       let dSq = this.pos.distSq(p.pos);
       if (dSq < fleeRadiusSq) {
@@ -375,7 +374,6 @@ const ctx = canvas.getContext('2d');
 let width, height;
 let boids = [];
 let npcs = [];
-
 // RPS Dragons mapped by type
 let dragons = { rock: [], paper: [], scissors: [] };
 
@@ -436,12 +434,13 @@ document.getElementById('maxSpeed').addEventListener('input', (e) => {
 });
 
 // Generate Ecosystem Sliders
+// Notice: The 'perceptionRadius' object has been removed from this array!
 const sliders = [
   { id: 'numBoids', label: '🌸 Flowers', min: 10, max: 500, step: 10 },
   { id: 'numNPCs', label: '🐟 Koi', min: 0, max: 16, step: 1 },
   { id: 'numRock', label: '🪨 Rock Dragons', min: 0, max: 4, step: 1 },
   { id: 'numPaper', label: '📄 Paper Dragons', min: 0, max: 4, step: 1 },
-  { id: 'numScissors', label: '✂️ Scissors Dragons', min: 0, max: 4, step: 1 },
+  { id: 'numScissors', label: '✂️ Scissors Dragons', min: 0, max: 4, step: 1 }
 ];
 
 sliders.forEach(s => {
