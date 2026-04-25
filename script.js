@@ -442,7 +442,6 @@ const sliders = [
   { id: 'numRock', label: '🪨 Rock Dragons', min: 0, max: 4, step: 1 },
   { id: 'numPaper', label: '📄 Paper Dragons', min: 0, max: 4, step: 1 },
   { id: 'numScissors', label: '✂️ Scissors Dragons', min: 0, max: 4, step: 1 },
-  { id: 'perceptionRadius', label: 'Eddy Radius', min: 10, max: 200, step: 5 }
 ];
 
 sliders.forEach(s => {
