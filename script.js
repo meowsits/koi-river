@@ -382,9 +382,9 @@ let deadNPCs = [];
 let deadDragons = { rock: [], paper: [], scissors: [] };
 
 let config = {
-  flowEnabled: true, flowStrength: 1.0,
-  numBoids: 150, numNPCs: 8, perceptionRadius: 60, maxSpeed: 2.5,
-  numRock: 1, numPaper: 1, numScissors: 1,
+  flowEnabled: true, flowStrength: 0.0,
+  numBoids: 50, numNPCs: 5, perceptionRadius: 60, maxSpeed: 1,
+  numRock: 0, numPaper: 0, numScissors: 0,
   maxForce: 0.05, alignWeight: 1.0, cohesionWeight: 1.2, separationWeight: 1.5
 };
 
